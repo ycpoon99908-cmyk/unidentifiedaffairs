@@ -1,64 +1,108 @@
-import Image from "next/image";
+import Link from "next/link";
+import { prisma } from "@/server/db";
+import { HamburgerSidebar } from "@/components/HamburgerSidebar";
+import { PostCard } from "@/components/PostCard";
+import { SiteTitle } from "@/components/SiteTitle";
+import { ensureDefaultCategories } from "@/server/categories";
 
-export default function Home() {
+type SearchParams = {
+  category?: string;
+  q?: string;
+};
+
+export default async function Home({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const sp = await searchParams;
+  const category = sp.category?.trim() || undefined;
+  const q = sp.q?.trim() || undefined;
+  const now = new Date();
+
+  await ensureDefaultCategories();
+  const categories = await prisma.category.findMany({
+    orderBy: [{ order: "asc" }, { name: "asc" }],
+    select: { slug: true, name: true },
+  });
+
+  const baseWhere = {
+    status: "PUBLISHED" as const,
+    publishedAt: { lte: now },
+    ...(category ? { category: { slug: category } } : {}),
+    ...(q
+      ? {
+          OR: [{ title: { contains: q } }, { excerpt: { contains: q } }, { content: { contains: q } }],
+        }
+      : {}),
+  };
+
+  const [featured, posts] = await Promise.all([
+    prisma.post.findMany({
+      where: { ...baseWhere, displaySlot: "FEATURED" },
+      orderBy: [{ isPinned: "desc" }, { displayOrder: "asc" }, { publishedAt: "desc" }],
+      select: { title: true, slug: true, excerpt: true, thumbnailPath: true, category: { select: { name: true, slug: true } } },
+      take: 3,
+    }),
+    prisma.post.findMany({
+      where: { ...baseWhere, displaySlot: "GRID" },
+      orderBy: [{ isPinned: "desc" }, { displayOrder: "asc" }, { publishedAt: "desc" }],
+      select: { title: true, slug: true, excerpt: true, thumbnailPath: true, category: { select: { name: true, slug: true } } },
+      take: 60,
+    }),
+  ]);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="min-h-dvh">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-black/15 backdrop-blur-xl">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-4">
+            <HamburgerSidebar categories={categories} titleTapToAdmin />
+            <SiteTitle />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/submit"
+              className="inline-flex h-10 items-center rounded-xl border border-white/10 bg-black/25 px-4 text-sm text-white/80 transition hover:border-white/20 hover:bg-black/35 hover:text-white"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              投稿
+            </Link>
+            <Link
+              href="/admin/login"
+              className="inline-flex h-10 items-center rounded-xl border border-white/10 bg-black/25 px-4 text-sm text-white/80 transition hover:border-white/20 hover:bg-black/35 hover:text-white"
             >
-              Learning
-            </a>{" "}
-            center.
+              登入
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto w-full max-w-6xl px-5 pb-16 pt-10">
+        <div className="mb-8 flex flex-col gap-2">
+          <h1 className="text-2xl font-semibold tracking-wide text-white/90">收件箱裡的黑暗</h1>
+          <p className="max-w-2xl text-sm leading-6 text-white/55">
+            這裡保存著都市傳說、靈異事件與未解之謎。請挑選一個標題，別在半夜獨自閱讀太久。
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+
+        {featured.length ? (
+          <section className="mb-6">
+            <div className="mb-3 text-xs tracking-[0.22em] text-white/45">置頂檔案</div>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              {featured.map((p) => (
+                <PostCard key={p.slug} title={p.title} excerpt={p.excerpt} slug={p.slug} category={p.category} thumbnailPath={p.thumbnailPath} />
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {posts.map((p) => (
+            <PostCard key={p.slug} title={p.title} excerpt={p.excerpt} slug={p.slug} category={p.category} thumbnailPath={p.thumbnailPath} />
+          ))}
+        </section>
+
+        {posts.length === 0 ? (
+          <div className="mt-10 rounded-2xl border border-white/10 bg-black/25 p-6 text-sm text-white/60">
+            找不到符合的內容。也許你正在搜尋不存在的目擊紀錄。
+          </div>
+        ) : null}
       </main>
     </div>
   );

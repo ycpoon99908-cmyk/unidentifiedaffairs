@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum DisplaySlot {
+  GRID
+  FEATURED
+}
+
+enum SubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model AdminUser {
+  id           String     @id @default(cuid())
+  username     String     @unique
+  passwordHash String
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  auditLogs AuditLog[]
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  posts Post[]
+
+  @@index([order])
+}
+
+model Post {
+  id               String      @id @default(cuid())
+  title            String
+  slug             String      @unique
+  excerpt          String?
+  content          String
+  thumbnailPath    String?
+  videoPath        String?
+  views            Int         @default(0)
+  status           PostStatus  @default(DRAFT)
+  displaySlot      DisplaySlot @default(GRID)
+  displayOrder     Int         @default(0)
+  isPinned         Boolean     @default(false)
+  scheduledAt      DateTime?
+  publishedAt      DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  categoryId       String?
+  sourceSubmissionId String?
+
+  category        Category?   @relation(fields: [categoryId], references: [id])
+  sourceSubmission Submission? @relation(fields: [sourceSubmissionId], references: [id])
+  comments        Comment[]
+
+  @@index([status, publishedAt])
+  @@index([displaySlot, displayOrder])
+  @@index([categoryId])
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  postId     String
+  authorName String?
+  content    String
+  createdAt  DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+}
+
+model PublicUser {
+  id          String       @id @default(cuid())
+  displayName String
+  email       String?      @unique
+  createdAt   DateTime     @default(now())
+
+  submissions Submission[]
+}
+
+model Submission {
+  id                String           @id @default(cuid())
+  title             String
+  content           String
+  thumbnailPath     String?
+  videoPath         String?
+  categorySuggestion String?
+  authorName        String?
+  contact           String?
+  status            SubmissionStatus @default(PENDING)
+  adminNotes        String?
+  reviewedAt        DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  publicUserId      String?
+
+  publicUser PublicUser? @relation(fields: [publicUserId], references: [id])
+  posts      Post[]
+
+  @@index([status, createdAt])
+}
+
+model AuditLog {
+  id          String    @id @default(cuid())
+  action      String
+  entityType  String
+  entityId    String?
+  ip          String?
+  userAgent   String?
+  metadataJson String?
+  createdAt   DateTime  @default(now())
+  adminUserId String?
+
+  adminUser AdminUser? @relation(fields: [adminUserId], references: [id])
+
+  @@index([createdAt])
+  @@index([adminUserId])
+}
