@@ -1,8 +1,7 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
-import { PrismaClient, DisplaySlot, PostStatus, SubmissionStatus } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { DisplaySlot, PostStatus, SubmissionStatus } from "../src/generated/prisma/client";
+import { prisma } from "../src/server/db";
 
 async function main() {
   const adminUsername = process.env.ADMIN_USERNAME ?? "admin";
