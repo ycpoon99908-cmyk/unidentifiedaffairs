@@ -12,20 +12,61 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const now = new Date();
 
-  const post = await prisma.post.findFirst({
-    where: { slug, status: "PUBLISHED", publishedAt: { lte: now } },
-    select: {
-      title: true,
-      excerpt: true,
-      content: true,
-      thumbnailPath: true,
-      videoPath: true,
-      views: true,
-      publishedAt: true,
-      category: { select: { name: true, slug: true } },
-      _count: { select: { comments: true } },
-    },
-  });
+  let post:
+    | {
+        title: string;
+        excerpt: string | null;
+        content: string;
+        thumbnailPath: string | null;
+        videoPath: string | null;
+        views: number;
+        publishedAt: Date | null;
+        category: { name: string; slug: string } | null;
+        _count: { comments: number };
+      }
+    | null = null;
+
+  try {
+    post = await prisma.post.findFirst({
+      where: { slug, status: "PUBLISHED", publishedAt: { lte: now } },
+      select: {
+        title: true,
+        excerpt: true,
+        content: true,
+        thumbnailPath: true,
+        videoPath: true,
+        views: true,
+        publishedAt: true,
+        category: { select: { name: true, slug: true } },
+        _count: { select: { comments: true } },
+      },
+    });
+  } catch {
+    return (
+      <div className="min-h-dvh">
+        <header className="border-b border-white/10 bg-black/15 backdrop-blur-xl">
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <Link href="/" className="text-sm tracking-[0.25em] text-white/70 hover:text-white">
+              返回檔案室
+            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link href="/submit" className="text-sm text-white/60 hover:text-white/85">
+                投稿
+              </Link>
+              <Link href="/admin/login" className="text-sm text-white/60 hover:text-white/85">
+                登入
+              </Link>
+            </div>
+          </div>
+        </header>
+        <main className="mx-auto w-full max-w-3xl px-5 pb-16 pt-10">
+          <div className="rounded-2xl border border-red-200/20 bg-red-950/20 p-6 text-sm text-red-100/80">
+            伺服器尚未完成資料庫初始化（Vercel 環境變數或遷移未設定），暫時無法讀取文章內容。
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   if (!post) notFound();
 

@@ -25,17 +25,18 @@ export const DEFAULT_CATEGORIES = [
 ];
 
 export async function ensureDefaultCategories() {
-  const slugs = DEFAULT_CATEGORIES.map((c) => c.slug);
-  const existing = await prisma.category.findMany({
-    where: { slug: { in: slugs } },
-    select: { slug: true },
-  });
-  const existingSlugs = new Set(existing.map((c) => c.slug));
-  const missing = DEFAULT_CATEGORIES.filter((c) => !existingSlugs.has(c.slug));
-  if (!missing.length) return;
   try {
+    const slugs = DEFAULT_CATEGORIES.map((c) => c.slug);
+    const existing = await prisma.category.findMany({
+      where: { slug: { in: slugs } },
+      select: { slug: true },
+    });
+    const existingSlugs = new Set(existing.map((c) => c.slug));
+    const missing = DEFAULT_CATEGORIES.filter((c) => !existingSlugs.has(c.slug));
+    if (!missing.length) return;
     await prisma.category.createMany({ data: missing });
   } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2021") return;
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") return;
     throw err;
   }

@@ -16,37 +16,55 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
   const q = sp.q?.trim() || undefined;
   const now = new Date();
 
-  await ensureDefaultCategories();
-  const categories = await prisma.category.findMany({
-    orderBy: [{ order: "asc" }, { name: "asc" }],
-    select: { slug: true, name: true },
-  });
-
-  const baseWhere = {
-    status: "PUBLISHED" as const,
-    publishedAt: { lte: now },
-    ...(category ? { category: { slug: category } } : {}),
-    ...(q
-      ? {
-          OR: [{ title: { contains: q } }, { excerpt: { contains: q } }, { content: { contains: q } }],
-        }
-      : {}),
+  type CategoryItem = { slug: string; name: string };
+  type PostListItem = {
+    title: string;
+    slug: string;
+    excerpt: string | null;
+    thumbnailPath: string | null;
+    category: { name: string; slug: string } | null;
   };
 
-  const [featured, posts] = await Promise.all([
-    prisma.post.findMany({
-      where: { ...baseWhere, displaySlot: "FEATURED" },
-      orderBy: [{ isPinned: "desc" }, { displayOrder: "asc" }, { publishedAt: "desc" }],
-      select: { title: true, slug: true, excerpt: true, thumbnailPath: true, category: { select: { name: true, slug: true } } },
-      take: 3,
-    }),
-    prisma.post.findMany({
-      where: { ...baseWhere, displaySlot: "GRID" },
-      orderBy: [{ isPinned: "desc" }, { displayOrder: "asc" }, { publishedAt: "desc" }],
-      select: { title: true, slug: true, excerpt: true, thumbnailPath: true, category: { select: { name: true, slug: true } } },
-      take: 60,
-    }),
-  ]);
+  let dbUnavailable = false;
+  let categories: CategoryItem[] = [];
+  let featured: PostListItem[] = [];
+  let posts: PostListItem[] = [];
+
+  try {
+    await ensureDefaultCategories();
+    categories = await prisma.category.findMany({
+      orderBy: [{ order: "asc" }, { name: "asc" }],
+      select: { slug: true, name: true },
+    });
+
+    const baseWhere = {
+      status: "PUBLISHED" as const,
+      publishedAt: { lte: now },
+      ...(category ? { category: { slug: category } } : {}),
+      ...(q
+        ? {
+            OR: [{ title: { contains: q } }, { excerpt: { contains: q } }, { content: { contains: q } }],
+          }
+        : {}),
+    };
+
+    [featured, posts] = await Promise.all([
+      prisma.post.findMany({
+        where: { ...baseWhere, displaySlot: "FEATURED" },
+        orderBy: [{ isPinned: "desc" }, { displayOrder: "asc" }, { publishedAt: "desc" }],
+        select: { title: true, slug: true, excerpt: true, thumbnailPath: true, category: { select: { name: true, slug: true } } },
+        take: 3,
+      }),
+      prisma.post.findMany({
+        where: { ...baseWhere, displaySlot: "GRID" },
+        orderBy: [{ isPinned: "desc" }, { displayOrder: "asc" }, { publishedAt: "desc" }],
+        select: { title: true, slug: true, excerpt: true, thumbnailPath: true, category: { select: { name: true, slug: true } } },
+        take: 60,
+      }),
+    ]);
+  } catch {
+    dbUnavailable = true;
+  }
 
   return (
     <div className="min-h-dvh">
@@ -80,6 +98,12 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
             這裡保存著都市傳說、靈異事件與未解之謎。請挑選一個標題，別在半夜獨自閱讀太久。
           </p>
         </div>
+
+        {dbUnavailable ? (
+          <div className="mb-6 rounded-2xl border border-red-200/20 bg-red-950/20 p-5 text-sm text-red-100/80">
+            伺服器尚未完成資料庫初始化（Vercel 環境變數或遷移未設定）。請到 Vercel 專案設定補上 `DATABASE_URL` 後重新部署。
+          </div>
+        ) : null}
 
         {featured.length ? (
           <section className="mb-6">

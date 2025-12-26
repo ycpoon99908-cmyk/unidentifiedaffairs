@@ -22,7 +22,9 @@ function runtimeModelHasField(client: PrismaClient, modelName: string, fieldName
 }
 
 function makeClient() {
-  const url = process.env.DATABASE_URL ?? "file:./dev.db";
+  const url =
+    process.env.DATABASE_URL ??
+    (process.env.VERCEL ? "file:/tmp/dev.db" : "file:./dev.db");
   if (url.startsWith("file:")) {
     const adapter = new PrismaBetterSqlite3({ url });
     return new PrismaClient({ adapter });
