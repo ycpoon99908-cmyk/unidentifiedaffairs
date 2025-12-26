@@ -1,5 +1,7 @@
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient } from "@/generated/prisma/client";
+import fs from "fs";
+import path from "path";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
@@ -22,10 +24,16 @@ function runtimeModelHasField(client: PrismaClient, modelName: string, fieldName
 }
 
 function makeClient() {
-  const url =
-    process.env.DATABASE_URL ??
-    (process.env.VERCEL ? "file:/tmp/dev.db" : "file:./dev.db");
+  const defaultUrl = process.env.VERCEL ? "file:/tmp/dev.db" : "file:./prisma/dev.db";
+  const url = process.env.DATABASE_URL ?? defaultUrl;
   if (url.startsWith("file:")) {
+    if (!process.env.DATABASE_URL && process.env.VERCEL) {
+      const targetPath = "/tmp/dev.db";
+      if (!fs.existsSync(targetPath)) {
+        const templatePath = path.join(process.cwd(), "prisma", "dev.db");
+        if (fs.existsSync(templatePath)) fs.copyFileSync(templatePath, targetPath);
+      }
+    }
     const adapter = new PrismaBetterSqlite3({ url });
     return new PrismaClient({ adapter });
   }

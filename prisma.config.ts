@@ -12,6 +12,6 @@ export default defineConfig({
   datasource: {
     url:
       process.env["DATABASE_URL"] ??
-      (process.env["VERCEL"] ? "file:/tmp/dev.db" : "file:./dev.db"),
+      "file:./prisma/dev.db",
   },
 });

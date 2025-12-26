@@ -1,7 +1,14 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
-import { DisplaySlot, PostStatus, SubmissionStatus } from "../src/generated/prisma/client";
-import { prisma } from "../src/server/db";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { DisplaySlot, PostStatus, PrismaClient, SubmissionStatus } from "../src/generated/prisma/client";
+
+const url = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
+const prisma = url.startsWith("file:")
+  ? new PrismaClient({ adapter: new PrismaBetterSqlite3({ url }) })
+  : new (PrismaClient as unknown as { new (opts: { errorFormat?: "minimal" | "colorless" | "pretty" }): PrismaClient })({
+      errorFormat: "minimal",
+    });
 
 async function main() {
   const adminUsername = process.env.ADMIN_USERNAME ?? "admin";
