@@ -2,11 +2,14 @@ node_modules/
 .next/
 .DS_Store
 *.log
+next-env.d.ts
+tsconfig.tsbuildinfo
 
 dev.db
 *.db
 
 public/uploads/
+src/generated/
 
 /.env*
 /.env
